@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -75,6 +75,40 @@ function defaultOutDir(executable) {
   return path.resolve(`${base}.unbun`);
 }
 
+async function resolveExecutableInput(input) {
+  const resolved = path.resolve(input);
+  const info = await stat(resolved);
+  if (!info.isDirectory()) {
+    return { executable: resolved, buffer: await readFile(resolved) };
+  }
+
+  const entries = await readdir(resolved, { withFileTypes: true });
+  const candidates = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const candidate = path.join(resolved, entry.name);
+    let buffer;
+    try {
+      buffer = await readFile(candidate);
+      extractExecutable(buffer, { executablePath: candidate });
+      candidates.push({ executable: candidate, buffer });
+    } catch {
+      // Not every executable in a bin directory is a Bun standalone app.
+    }
+  }
+
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) {
+    throw new Error(
+      `directory contains multiple Bun standalone executables; pass one explicitly:\n${candidates
+        .map((candidate) => `  ${candidate.executable}`)
+        .join("\n")}`,
+    );
+  }
+
+  throw new Error(`directory does not contain a Bun standalone executable: ${resolved}`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -88,8 +122,10 @@ async function main() {
     return;
   }
 
-  const executable = path.resolve(args.executable);
+  const { executable, buffer } = await resolveExecutableInput(args.executable);
   const outDir = path.resolve(args.outDir ?? defaultOutDir(executable));
+
+  const result = extractExecutable(buffer, { executablePath: executable });
 
   if (existsSync(outDir)) {
     if (!args.force) {
@@ -98,9 +134,6 @@ async function main() {
     await rm(outDir, { recursive: true, force: true });
   }
   await mkdir(outDir, { recursive: true });
-
-  const buffer = await readFile(executable);
-  const result = extractExecutable(buffer, { executablePath: executable });
 
   const filesDir = path.join(outDir, "files");
   if (!args.manifestOnly) await mkdir(filesDir, { recursive: true });

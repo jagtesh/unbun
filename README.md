@@ -15,6 +15,13 @@ author-written source.
 node ./bin/unbun.mjs ./my-compiled-bun-app --out ./my-compiled-bun-app.unpacked
 ```
 
+If you pass a directory, `unbun` scans its direct child files and extracts the
+single Bun standalone executable it finds:
+
+```sh
+node ./bin/unbun.mjs /Users/me/.amp/bin -o ./ampcode
+```
+
 Or install/link it as a local CLI:
 
 ```sh
