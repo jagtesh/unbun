@@ -1,0 +1,16 @@
+{
+  "name": "unbun",
+  "version": "0.1.0",
+  "description": "Extract Bun --compile standalone executable module graphs back into bundled source and assets.",
+  "type": "module",
+  "bin": {
+    "unbun": "./bin/unbun.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "BSD-3-Clause"
+}
